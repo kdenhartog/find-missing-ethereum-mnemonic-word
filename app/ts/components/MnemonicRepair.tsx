@@ -18,13 +18,13 @@ export function MnemonicRepair() {
 	function onSearch() {
 		waitFor(async () => {
 			const elevenWords = elevenWordsInputValue.peek()
-			const address = addressInputValue.peek()
+			// const address = addressInputValue.peek()
 			const split = elevenWords.split(' ')
 			if (split.length !== 11) throw new Error(`Must enter 11 words, you entered ${split.length} words.`)
 			split.forEach(word => {
 				if (!wordlist.includes(word)) throw new Error(`All words must be part of a mnemonic.  ${word} is not part of the mnemonic word list.`)
 			})
-			if (!/0x[a-fA-F0-9]{40}/.test(address)) throw new Error(`Address must be an Ethereum address starting with 0x, you entered ${address}`)
+			// if (!/0x[a-fA-F0-9]{40}/.test(address)) throw new Error(`Address must be an Ethereum address starting with 0x, you entered ${address}`)
 			for (const positionToTest of [11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
 				currentPosition.value = positionToTest
 				for (const word of wordlist) {
@@ -47,7 +47,45 @@ export function MnemonicRepair() {
 					const publicKey = secp256k1.getPublicKey(maybePrivateKey, false)
 					const addressBytes = keccak_256(publicKey.subarray(1, 65)).slice(12)
 					const addressString = `0x${Array.from(addressBytes).map(x => x.toString(16).padStart(2, '0')).join('')}`
-					if (addressString !== address) continue
+
+					const url = "https://api.etherscan.io/api";
+					const queryParams = {
+						module: "account",
+						action: "balance",
+						address: addressString,
+						tag: "latest",
+						apikey: "ENTER YOUR OWN API KEY"
+					};
+
+					// Construct the query string from the queryParams object
+					const queryString = Object.keys(queryParams)
+						.map(key => {
+							const queryParam: string = queryParams[key];
+							return `${encodeURIComponent(key)}=${encodeURIComponent(queryParam)}`
+						})
+						.join("&");
+
+					// Combine the URL and query string
+					const fullURL = `${url}?${queryString}`;
+					console.log(fullURL);
+					// Fetch request
+					const body = await fetch(fullURL)
+						.then(response => response.json())
+						.then(data => {
+							if (data.result != "0") {
+								console.log(data.result)
+								return false;
+							} else {
+								console.log(data.result);
+								sleep(1000);
+								return true;
+							}
+						})
+						.catch(error => {
+							console.error("Error fetching data:", error);
+						});
+
+					if (body) continue
 					return word
 				}
 			}
